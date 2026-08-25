@@ -30,10 +30,10 @@ public final class NodeSummaries {
     }
 
     private static Component timerLine(NodeSettings.Timer timer) {
-        String amount = timer.offset() > 0 ? timer.amount() + " + " + timer.offset() : String.valueOf(timer.amount());
+        String offset = timer.offset() > 0 ? " + " + timer.offset() : "";
         Component unit = (timer.seconds() ? RFMTranslations.SUMMARY_SECONDS : RFMTranslations.SUMMARY_TICKS).component();
         return (timer.global() ? RFMTranslations.SUMMARY_TIMER_GLOBAL : RFMTranslations.SUMMARY_TIMER)
-                .component(amount, unit);
+                .component(String.valueOf(timer.amount()), offset, unit);
     }
 
     private static List<Component> ioLines(NodeSettings.Io io) {

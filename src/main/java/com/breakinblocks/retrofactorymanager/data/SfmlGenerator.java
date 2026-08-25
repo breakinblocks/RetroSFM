@@ -93,11 +93,11 @@ public final class SfmlGenerator {
     private static String triggerHeader(BlueprintNode trigger) {
         if (trigger.settings() instanceof NodeSettings.Timer timer) {
             StringBuilder sb = new StringBuilder("EVERY ").append(timer.amount());
-            if (timer.offset() > 0) {
-                sb.append(" + ").append(timer.offset());
-            }
             if (timer.global()) {
                 sb.append(" GLOBAL");
+            }
+            if (timer.offset() > 0) {
+                sb.append(" + ").append(timer.offset());
             }
             sb.append(timer.seconds() ? " SECONDS" : " TICKS");
             return sb.append(" DO").toString();

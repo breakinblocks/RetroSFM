@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.3
+
+### Fixed
+
+* Timer nodes with global align turned on and an offset set now generate valid SFML. The alignment keyword was written after the offset (`EVERY 20 + 11 GLOBAL TICKS`), which SFM rejects; it now comes first (`EVERY 20 GLOBAL + 11 TICKS`)
+* The side panel now scrolls far enough to read the whole SFML preview while a node is selected. The scroll range ignored the preview section, so it stopped at the end of the node settings
+
+### Changed
+
+* Timer node labels list the alignment before the offset, matching the generated program
+* The timer offset hint reads "Offset (+ seconds)" when the interval is set to seconds, since SFM scales the offset by 20 in that mode
+* The timer inspector warns when the offset is at or above the interval, a combination that stops the timer from ever running
+
 ## 1.0.2
 
 ### Fixed

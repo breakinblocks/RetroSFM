@@ -81,6 +81,9 @@ public final class RFMTranslations {
     public static final Entry INTERVAL = gui("interval", "Interval");
     public static final Entry OFFSET = gui("offset", "Offset");
     public static final Entry OFFSET_HINT = gui("offset_hint", "Offset (+ ticks)");
+    public static final Entry OFFSET_HINT_SECONDS = gui("offset_hint_seconds", "Offset (+ seconds)");
+    public static final Entry OFFSET_WARNING = gui("offset_warning", "Offset >= interval:");
+    public static final Entry OFFSET_WARNING2 = gui("offset_warning2", "timer will never run");
     public static final Entry MIN_INTERVAL_WARNING = gui("min_interval_warning", "Below server min (20t)");
     public static final Entry MIN_INTERVAL_WARNING2 = gui("min_interval_warning2", "unless energy-only IO");
     public static final Entry NO_OPTIONS = gui("no_options", "No options");
@@ -148,8 +151,8 @@ public final class RFMTranslations {
     public static final Entry ERROR_CYCLE = error("cycle", "Connection would create a loop");
     public static final Entry ERROR_INCOMPATIBLE_PINS = error("incompatible_pins", "Connect an output pin to an input pin");
 
-    public static final Entry SUMMARY_TIMER = summary("timer", "Every %s %s");
-    public static final Entry SUMMARY_TIMER_GLOBAL = summary("timer_global", "Every %s global %s");
+    public static final Entry SUMMARY_TIMER = summary("timer", "Every %s%s %s");
+    public static final Entry SUMMARY_TIMER_GLOBAL = summary("timer_global", "Every %s global%s %s");
     public static final Entry SUMMARY_TICKS = summary("ticks", "ticks");
     public static final Entry SUMMARY_SECONDS = summary("seconds", "seconds");
     public static final Entry SUMMARY_REDSTONE_PULSE = summary("redstone_pulse", "Every redstone pulse");
