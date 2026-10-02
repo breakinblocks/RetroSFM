@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+### Added
+
+* Brazilian Portuguese (pt_br) translation, contributed by PrincessStellar
+
 ## 1.0.3
 
 ### Fixed

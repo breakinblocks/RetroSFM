@@ -79,13 +79,6 @@ publishMods {
         minecraftVersions.add(minecraft_version)
         requires { slug = 'super-factory-manager' }
     }
-
-    github {
-        repository = 'breakinblocks/RetroSFM'
-        accessToken = providers.environmentVariable('GITHUB_TOKEN')
-        commitish = 'main'
-        tagName = "v${mod_version}"
-    }
 }
 
 processResources {
