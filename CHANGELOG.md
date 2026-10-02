@@ -13,6 +13,10 @@
 * The timer offset hint reads "Offset (+ seconds)" when the interval is set to seconds, since SFM scales the offset by 20 in that mode
 * The timer inspector warns when the offset is at or above the interval, a combination that stops the timer from ever running
 
+### Added
+
+* Brazilian Portuguese (pt_br) translation, contributed by PrincessStellar
+
 ## 1.0.2
 
 ### Fixed
