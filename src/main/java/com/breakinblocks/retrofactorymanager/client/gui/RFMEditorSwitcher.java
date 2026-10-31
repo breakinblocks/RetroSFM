@@ -42,15 +42,17 @@ public final class RFMEditorSwitcher {
             int width,
             int height,
             ISFMTextEditScreen editorScreen,
+            Identifier shownEditorId,
             Supplier<String> latestContent
     ) {
         return Button.builder(
-                        buttonMessage(getCurrentEditorId()),
+                        buttonMessage(shownEditorId),
                         button -> SFMScreenChangeHelpers.setOrPushScreen(new PickerScreen(
                                 x,
                                 y,
                                 width,
                                 height,
+                                shownEditorId,
                                 id -> switchEditor(editorScreen, latestContent.get())
                         )))
                 .pos(x, y)
@@ -92,24 +94,29 @@ public final class RFMEditorSwitcher {
                 return oldContext.labelPositionHolder();
             }
         };
-        ISFMTextEditScreen newScreen = SFMScreenChangeHelpers.createProgramEditScreen(newContext);
-        switch (editorScreen.openBehaviour()) {
+        boolean returnedToPrevious = switch (editorScreen.openBehaviour()) {
             case Push -> {
                 SFMScreenChangeHelpers.popScreen();
-                SFMScreenChangeHelpers.showTextEditScreen(newScreen);
+                yield true;
             }
-            case Replace -> SFMScreenChangeHelpers.setScreen(newScreen.asScreen());
+            case Replace -> RFMSfmEditorScreenTweaks.returnToPreviousScreen(editorScreen);
+        };
+        ISFMTextEditScreen newScreen = SFMScreenChangeHelpers.createProgramEditScreen(newContext);
+        if (returnedToPrevious) {
+            SFMScreenChangeHelpers.showTextEditScreen(newScreen);
+        } else {
+            SFMScreenChangeHelpers.setScreen(newScreen.asScreen());
         }
     }
 
-    private static Component getDisplayName(Identifier id) {
+    static Component getDisplayName(Identifier id) {
         return Component.translatableWithFallback(
                 "gui.sfm.preferred_editor." + id.getNamespace() + "." + id.getPath(),
                 id.toString()
         );
     }
 
-    private static List<Identifier> getEditorIds() {
+    static List<Identifier> getEditorIds() {
         List<Identifier> editorIds = new ArrayList<>();
         for (ISFMTextEditorRegistration registration : SFMTextEditors.registry()) {
             Identifier id = SFMTextEditors.registry().getId(registration);
@@ -120,7 +127,7 @@ public final class RFMEditorSwitcher {
         return editorIds;
     }
 
-    private static Identifier getCurrentEditorId() {
+    static Identifier getCurrentEditorId() {
         List<Identifier> editorIds = getEditorIds();
         @Nullable Identifier current = SFMResourceLocation.tryParse(
                 SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor.get()
@@ -135,14 +142,27 @@ public final class RFMEditorSwitcher {
         return getDisplayName(id).copy().append(" ▼");
     }
 
+    static void applyEditorSelection(Identifier id) {
+        var preferredEditor = SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor;
+        if (!id.toString().equals(preferredEditor.get())) {
+            preferredEditor.set(id.toString());
+            preferredEditor.save();
+        }
+        boolean isBlueprint = RFMTextEditors.BLUEPRINT.getId().equals(id);
+        if (RFMConfig.CLIENT.setBlueprintAsDefaultEditor.get() != isBlueprint) {
+            RFMConfig.CLIENT.setBlueprintAsDefaultEditor.set(isBlueprint);
+            RFMConfig.CLIENT.setBlueprintAsDefaultEditor.save();
+        }
+    }
+
     private static class PickerScreen extends Screen {
         private final int anchorX;
         private final int anchorY;
         private final int anchorWidth;
         private final int anchorHeight;
+        private final Identifier currentEditorId;
         private final Consumer<Identifier> onSelect;
         private List<Identifier> editorIds = List.of();
-        private Identifier currentEditorId;
         private int popupX;
         private int popupY;
         private int popupWidth;
@@ -154,6 +174,7 @@ public final class RFMEditorSwitcher {
                 int anchorY,
                 int anchorWidth,
                 int anchorHeight,
+                Identifier currentEditorId,
                 Consumer<Identifier> onSelect
         ) {
             super(RFMTranslations.SFM_PREFERRED_EDITOR.component());
@@ -161,6 +182,7 @@ public final class RFMEditorSwitcher {
             this.anchorY = anchorY;
             this.anchorWidth = anchorWidth;
             this.anchorHeight = anchorHeight;
+            this.currentEditorId = currentEditorId;
             this.onSelect = onSelect;
         }
 
@@ -173,7 +195,6 @@ public final class RFMEditorSwitcher {
         protected void init() {
             super.init();
             editorIds = getEditorIds();
-            currentEditorId = getCurrentEditorId();
             rowHeight = this.font.lineHeight + 4;
             popupWidth = anchorWidth;
             for (Identifier id : editorIds) {
@@ -259,14 +280,8 @@ public final class RFMEditorSwitcher {
             this.onClose();
             if (index >= 0) {
                 Identifier id = editorIds.get(index);
+                applyEditorSelection(id);
                 if (!id.equals(currentEditorId)) {
-                    SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor.set(id.toString());
-                    SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor.save();
-                    boolean isBlueprint = RFMTextEditors.BLUEPRINT.getId().equals(id);
-                    if (RFMConfig.CLIENT.setBlueprintAsDefaultEditor.get() != isBlueprint) {
-                        RFMConfig.CLIENT.setBlueprintAsDefaultEditor.set(isBlueprint);
-                        RFMConfig.CLIENT.setBlueprintAsDefaultEditor.save();
-                    }
                     onSelect.accept(id);
                 }
             }

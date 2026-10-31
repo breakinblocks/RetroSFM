@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.5
+
+### Added
+
+* Editor dropdown in SFM's V1 and V2 editors, so you can switch back to the Blueprint editor
+* Editor choice on SFM's Program Editor Config screen, covering every registered editor including Blueprint
+
+### Fixed
+
+* Closing the V2 editor after switching to it reopened an out-of-date copy of the editor you switched from
+
+### Changed
+
+* Wires between nodes now draw as smooth curves at any zoom level or GUI scale
+
 ## 1.0.3
 
 ### Fixed
