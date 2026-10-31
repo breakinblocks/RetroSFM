@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.5
+
+### Added
+
+* Editor dropdown in SFM's V1 and V2 editors, so you can switch back to the Blueprint editor
+
+### Fixed
+
+* Closing the V2 editor after switching to it reopened an out-of-date copy of the editor you switched from
+
 ## 1.0.4
 
 ### Added

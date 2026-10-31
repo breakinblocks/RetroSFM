@@ -41,15 +41,17 @@ public final class RFMEditorSwitcher {
             int width,
             int height,
             ISFMTextEditScreen editorScreen,
+            ResourceLocation shownEditorId,
             Supplier<String> latestContent
     ) {
         return Button.builder(
-                        buttonMessage(getCurrentEditorId()),
+                        buttonMessage(shownEditorId),
                         button -> SFMScreenChangeHelpers.setOrPushScreen(new PickerScreen(
                                 x,
                                 y,
                                 width,
                                 height,
+                                shownEditorId,
                                 id -> switchEditor(editorScreen, latestContent.get())
                         )))
                 .pos(x, y)
@@ -91,13 +93,18 @@ public final class RFMEditorSwitcher {
                 return oldContext.labelPositionHolder();
             }
         };
-        ISFMTextEditScreen newScreen = SFMScreenChangeHelpers.createProgramEditScreen(newContext);
-        switch (editorScreen.openBehaviour()) {
+        boolean returnedToPrevious = switch (editorScreen.openBehaviour()) {
             case Push -> {
                 SFMScreenChangeHelpers.popScreen();
-                SFMScreenChangeHelpers.showTextEditScreen(newScreen);
+                yield true;
             }
-            case Replace -> SFMScreenChangeHelpers.setScreen(newScreen.asScreen());
+            case Replace -> RFMSfmEditorScreenTweaks.returnToPreviousScreen(editorScreen);
+        };
+        ISFMTextEditScreen newScreen = SFMScreenChangeHelpers.createProgramEditScreen(newContext);
+        if (returnedToPrevious) {
+            SFMScreenChangeHelpers.showTextEditScreen(newScreen);
+        } else {
+            SFMScreenChangeHelpers.setScreen(newScreen.asScreen());
         }
     }
 
@@ -135,8 +142,11 @@ public final class RFMEditorSwitcher {
     }
 
     static void applyEditorSelection(ResourceLocation id) {
-        SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor.set(id.toString());
-        SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor.save();
+        var preferredEditor = SFMConfig.CLIENT_TEXT_EDITOR_CONFIG.preferredEditor;
+        if (!id.toString().equals(preferredEditor.get())) {
+            preferredEditor.set(id.toString());
+            preferredEditor.save();
+        }
         boolean isBlueprint = RFMTextEditors.BLUEPRINT.getId().equals(id);
         if (RFMConfig.CLIENT.setBlueprintAsDefaultEditor.get() != isBlueprint) {
             RFMConfig.CLIENT.setBlueprintAsDefaultEditor.set(isBlueprint);
@@ -149,9 +159,9 @@ public final class RFMEditorSwitcher {
         private final int anchorY;
         private final int anchorWidth;
         private final int anchorHeight;
+        private final ResourceLocation currentEditorId;
         private final Consumer<ResourceLocation> onSelect;
         private List<ResourceLocation> editorIds = List.of();
-        private ResourceLocation currentEditorId;
         private int popupX;
         private int popupY;
         private int popupWidth;
@@ -163,6 +173,7 @@ public final class RFMEditorSwitcher {
                 int anchorY,
                 int anchorWidth,
                 int anchorHeight,
+                ResourceLocation currentEditorId,
                 Consumer<ResourceLocation> onSelect
         ) {
             super(RFMTranslations.SFM_PREFERRED_EDITOR.component());
@@ -170,6 +181,7 @@ public final class RFMEditorSwitcher {
             this.anchorY = anchorY;
             this.anchorWidth = anchorWidth;
             this.anchorHeight = anchorHeight;
+            this.currentEditorId = currentEditorId;
             this.onSelect = onSelect;
         }
 
@@ -177,7 +189,6 @@ public final class RFMEditorSwitcher {
         protected void init() {
             super.init();
             editorIds = getEditorIds();
-            currentEditorId = getCurrentEditorId();
             rowHeight = this.font.lineHeight + 4;
             popupWidth = anchorWidth;
             for (ResourceLocation id : editorIds) {
@@ -264,8 +275,8 @@ public final class RFMEditorSwitcher {
             this.onClose();
             if (index >= 0) {
                 ResourceLocation id = editorIds.get(index);
+                applyEditorSelection(id);
                 if (!id.equals(currentEditorId)) {
-                    applyEditorSelection(id);
                     onSelect.accept(id);
                 }
             }

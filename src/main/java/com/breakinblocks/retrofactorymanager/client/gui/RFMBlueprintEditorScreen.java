@@ -25,6 +25,7 @@ import com.breakinblocks.retrofactorymanager.data.NodeType;
 import com.breakinblocks.retrofactorymanager.data.PinRole;
 import com.breakinblocks.retrofactorymanager.data.SfmlGenerator;
 import com.breakinblocks.retrofactorymanager.data.SfmlImporter;
+import com.breakinblocks.retrofactorymanager.integration.RFMTextEditors;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -275,6 +276,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
                 110,
                 20,
                 this,
+                RFMTextEditors.BLUEPRINT.getId(),
                 this::buildContent
         ));
         addRenderableWidget(Button.builder(
