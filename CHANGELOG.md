@@ -10,6 +10,10 @@
 
 * Closing the V2 editor after switching to it reopened an out-of-date copy of the editor you switched from
 
+### Changed
+
+* Wires between nodes now draw as smooth curves at any zoom level or GUI scale
+
 ## 1.0.4
 
 ### Added

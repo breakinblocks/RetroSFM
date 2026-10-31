@@ -2384,22 +2384,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
     }
 
     private void drawWire(GuiGraphics graphics, double x0, double y0, double x1, double y1, int color) {
-        double distance = Math.abs(x1 - x0) + Math.abs(y1 - y0);
-        double tangent = wireTangent(x0, x1);
-        double c0x = x0 + tangent;
-        double c1x = x1 - tangent;
-        int steps = (int) Mth.clamp(distance / 7, 10, 60);
-        int thickness = Math.max(2, (int) Math.round(2.2D * zoom));
-        int half = thickness / 2;
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            double omt = 1 - t;
-            double px = omt * omt * omt * x0 + 3 * omt * omt * t * c0x + 3 * omt * t * t * c1x + t * t * t * x1;
-            double py = omt * omt * omt * y0 + 3 * omt * omt * t * y0 + 3 * omt * t * t * y1 + t * t * t * y1;
-            int cx = (int) Math.round(px);
-            int cy = (int) Math.round(py);
-            graphics.fill(cx - half, cy - half, cx - half + thickness, cy - half + thickness, color);
-        }
+        WireRenderer.draw(graphics, x0, y0, x1, y1, wireTangent(x0, x1), Math.max(2.0D, 2.2D * zoom), color);
     }
 
     private int headerColor(NodeCategory category) {
