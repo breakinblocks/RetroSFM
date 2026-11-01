@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.7
+
+### Added
+
+* The SFML preview scrolls sideways for lines too long to fit the side panel. Use Shift+scroll, a horizontal trackpad swipe, or drag the bar along the bottom of the panel
+
+### Fixed
+
+* The "Program name" label stayed in place when the side panel scrolled and drew over the SFML preview
+* SFML preview lines ran past the edge of the side panel instead of being cut off at it
+* Long If conditions drew over the True, False and After labels. Node text that does not fit now ends in "...", and hovering the node shows it in full
+
 ## 1.0.6
 
 ### Added
