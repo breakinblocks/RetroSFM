@@ -20,23 +20,33 @@ public record NodeLayout(
     public static final double PIN_ROW_HEIGHT = 13;
     public static final double MIN_WIDTH = 90;
     public static final double MAX_WIDTH = 240;
+    private static final int SUMMARY_LEFT = 8;
+    private static final int RIGHT_PADDING = 12;
+    private static final int LABEL_GAP = 8;
+    private static final String ELLIPSIS = "...";
 
     public record PinSpot(PinRole role, double dx, double dy) {
     }
 
     public static NodeLayout of(BlueprintNode node, Font font) {
         List<Component> summary = NodeSummaries.lines(node.settings());
-        double width = font.width(Component.translatable(node.type().translationKey())) + 16;
-        for (Component line : summary) {
-            width = Math.max(width, font.width(line) + 20);
-        }
         List<PinRole> outputs = node.type().outputPins();
+        double width = font.width(Component.translatable(node.type().translationKey())) + 16;
+        for (int i = 0; i < summary.size(); i++) {
+            width = Math.max(width, SUMMARY_LEFT + font.width(summary.get(i)) + rightReserve(i, outputs, font));
+        }
         for (PinRole output : outputs) {
             if (output.hasLabel()) {
                 width = Math.max(width, font.width(Component.translatable(output.labelKey())) + 70);
             }
         }
         width = Math.clamp(width, MIN_WIDTH, MAX_WIDTH);
+
+        List<Component> fitted = new ArrayList<>(summary.size());
+        for (int i = 0; i < summary.size(); i++) {
+            int available = (int) width - SUMMARY_LEFT - rightReserve(i, outputs, font);
+            fitted.add(fit(summary.get(i), available, font));
+        }
 
         int pinRows = Math.max(outputs.size(), node.type().hasPin(PinRole.EXEC_IN) ? 1 : 0);
         double bodyHeight = Math.max(summary.size() * LINE_HEIGHT, pinRows * PIN_ROW_HEIGHT) + 9;
@@ -49,7 +59,31 @@ public record NodeLayout(
         for (int i = 0; i < outputs.size(); i++) {
             pins.add(new PinSpot(outputs.get(i), width, HEADER_HEIGHT + 10 + i * PIN_ROW_HEIGHT));
         }
-        return new NodeLayout(width, height, HEADER_HEIGHT, summary, pins);
+        return new NodeLayout(width, height, HEADER_HEIGHT, fitted, pins);
+    }
+
+    private static int rightReserve(int line, List<PinRole> outputs, Font font) {
+        double lineTop = 5 + line * LINE_HEIGHT;
+        int widest = 0;
+        for (int row = 0; row < outputs.size(); row++) {
+            PinRole output = outputs.get(row);
+            if (!output.hasLabel()) {
+                continue;
+            }
+            double labelTop = 6 + row * PIN_ROW_HEIGHT;
+            if (lineTop < labelTop + font.lineHeight && labelTop < lineTop + font.lineHeight) {
+                widest = Math.max(widest, font.width(Component.translatable(output.labelKey())));
+            }
+        }
+        return widest == 0 ? RIGHT_PADDING : 8 + widest + LABEL_GAP;
+    }
+
+    private static Component fit(Component line, int maxWidth, Font font) {
+        if (font.width(line) <= maxWidth) {
+            return line;
+        }
+        String cut = font.plainSubstrByWidth(line.getString(), Math.max(0, maxWidth - font.width(ELLIPSIS)));
+        return Component.literal(cut.stripTrailing() + ELLIPSIS);
     }
 
     public boolean contains(BlueprintNode node, double canvasX, double canvasY) {

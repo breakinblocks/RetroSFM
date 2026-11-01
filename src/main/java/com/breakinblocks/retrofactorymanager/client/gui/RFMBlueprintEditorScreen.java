@@ -104,7 +104,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
     private static final int MAX_VISIBLE_RESOURCE_ROWS = 4;
     private static final int MAX_LIMIT_GROUPS = 6;
 
-    private enum DragMode {NONE, PAN_MMB, PAN_RMB, NODES, WIRE, BOX}
+    private enum DragMode {NONE, PAN_MMB, PAN_RMB, NODES, WIRE, BOX, PREVIEW_HSCROLL}
 
     private record PinHit(UUID nodeId, PinRole role) {
     }
@@ -184,6 +184,9 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
     private int contextMenuY;
 
     private boolean previewOpen;
+    private int previewScrollX;
+    private int previewContentWidth = -1;
+    private double previewBarGrab;
 
     private final List<AbstractWidget> inspectorWidgets = new ArrayList<>();
     private final Map<AbstractWidget, Integer> inspectorWidgetBaseY = new HashMap<>();
@@ -330,6 +333,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         SfmlGenerator.Generated generated = SfmlGenerator.generateDetailed(graph);
         generatedProgram = generated.text();
         previewLines = generatedProgram.isBlank() ? List.of() : List.of(generatedProgram.split("\n", -1));
+        previewContentWidth = -1;
         if (generatedProgram.isBlank()) {
             programErrors = List.of();
         } else {
@@ -1744,6 +1748,69 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         }
     }
 
+    private int previewContentWidth() {
+        if (previewContentWidth < 0 && font != null) {
+            int widest = 0;
+            for (String line : previewLines) {
+                widest = Math.max(widest, font.width(line));
+            }
+            previewContentWidth = widest;
+        }
+        return Math.max(0, previewContentWidth);
+    }
+
+    private int previewViewWidth() {
+        return DOCK_WIDTH - 16;
+    }
+
+    private int maxPreviewScrollX() {
+        return Math.max(0, previewContentWidth() - previewViewWidth());
+    }
+
+    private boolean overPreview(double mouseY) {
+        return previewOpen && mouseY + dockScroll >= inspectorBottom;
+    }
+
+    private boolean previewBarVisible() {
+        return previewOpen && !previewLines.isEmpty() && maxPreviewScrollX() > 0
+                && inspectorBottom - dockScroll + 24 < height - 11;
+    }
+
+    private boolean inPreviewBar(double mouseX, double mouseY) {
+        int trackX = dockX() + 8;
+        return previewBarVisible()
+                && mouseX >= trackX && mouseX <= trackX + previewViewWidth()
+                && mouseY >= height - 11 && mouseY <= height - 1;
+    }
+
+    private int previewThumbWidth() {
+        int track = previewViewWidth();
+        return Mth.clamp(track * track / Math.max(1, previewContentWidth()), 20, track);
+    }
+
+    private int previewThumbX() {
+        int travel = previewViewWidth() - previewThumbWidth();
+        int maxScroll = maxPreviewScrollX();
+        return dockX() + 8 + (maxScroll == 0 ? 0 : (int) ((double) travel * previewScrollX / maxScroll));
+    }
+
+    private void beginPreviewBarDrag(double mouseX) {
+        int thumbX = previewThumbX();
+        int thumbWidth = previewThumbWidth();
+        previewBarGrab = mouseX >= thumbX && mouseX <= thumbX + thumbWidth ? mouseX - thumbX : thumbWidth / 2.0D;
+        dragMode = DragMode.PREVIEW_HSCROLL;
+        dragPreviewBar(mouseX);
+    }
+
+    private void dragPreviewBar(double mouseX) {
+        int travel = previewViewWidth() - previewThumbWidth();
+        if (travel <= 0) {
+            return;
+        }
+        double offset = mouseX - previewBarGrab - (dockX() + 8);
+        previewScrollX = Mth.clamp((int) Math.round(offset / travel * maxPreviewScrollX()), 0, maxPreviewScrollX());
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
@@ -1796,6 +1863,11 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         }
         if (inDock(mouseX)) {
             if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                if (inPreviewBar(mouseX, mouseY)) {
+                    setFocused(null);
+                    beginPreviewBarDrag(mouseX);
+                    return true;
+                }
                 handleDockContentClick(mouseX, mouseY + dockScroll);
             }
             return true;
@@ -2022,6 +2094,10 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
                 boxCurrentY = screenToCanvasY(mouseY);
                 return true;
             }
+            case PREVIEW_HSCROLL -> {
+                dragPreviewBar(mouseX);
+                return true;
+            }
             default -> {
                 return super.mouseDragged(event, dragX, dragY);
             }
@@ -2055,6 +2131,9 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
             }
             case BOX -> {
                 finishBoxSelect();
+                return true;
+            }
+            case PREVIEW_HSCROLL -> {
                 return true;
             }
             default -> {
@@ -2125,6 +2204,12 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        double horizontal = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX
+                : minecraft != null && minecraft.hasShiftDown() ? deltaY : 0.0D;
+        if (horizontal != 0.0D && inDock(mouseX) && overPreview(mouseY) && maxPreviewScrollX() > 0) {
+            previewScrollX = Mth.clamp(previewScrollX - (int) Math.signum(horizontal) * 16, 0, maxPreviewScrollX());
+            return true;
+        }
         if (deltaY == 0.0D) {
             return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
         }
@@ -2601,7 +2686,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
             renderInspectorContent(graphics, node, mouseX, mouseY + dockScroll);
             graphics.pose().popMatrix();
         } else if (previewOpen) {
-            graphics.text(font, RFMTranslations.PROGRAM_NAME.component(), x0 + 8, 24, TEXT_MUTED);
+            graphics.text(font, RFMTranslations.PROGRAM_NAME.component(), x0 + 8, 24 - dockScroll, TEXT_MUTED);
         }
         if (previewOpen) {
             renderPreviewSection(graphics);
@@ -2823,14 +2908,23 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
             graphics.text(font, RFMTranslations.EMPTY_PROGRAM.component(), x0 + 8, y, TEXT_MUTED);
             return;
         }
+        previewScrollX = Mth.clamp(previewScrollX, 0, maxPreviewScrollX());
+        graphics.enableScissor(x0 + 8, 0, x0 + 8 + previewViewWidth(), height - 11);
         for (String line : previewLines) {
             if (y > height - 12) {
                 break;
             }
             if (y > -lineHeight) {
-                graphics.text(font, Component.literal(line), x0 + 8, y, TEXT_MUTED);
+                graphics.text(font, Component.literal(line), x0 + 8 - previewScrollX, y, TEXT_MUTED);
             }
             y += lineHeight;
+        }
+        graphics.disableScissor();
+        if (previewBarVisible()) {
+            int trackX = x0 + 8;
+            int thumbX = previewThumbX();
+            graphics.fill(trackX, height - 7, trackX + previewViewWidth(), height - 5, PALETTE_BACKGROUND);
+            graphics.fill(thumbX, height - 7, thumbX + previewThumbWidth(), height - 5, PANEL_BORDER);
         }
     }
 
