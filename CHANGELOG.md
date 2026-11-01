@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6
+
+### Added
+
+* Right-clicking a wire removes that connection
+* Right-clicking a node opens a menu with a Delete option for the selected nodes
+
 ## 1.0.5
 
 ### Added

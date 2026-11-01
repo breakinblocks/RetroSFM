@@ -57,6 +57,8 @@ public final class RFMTranslations {
     public static final Entry ADD = gui("add", "Add");
     public static final Entry ADD_CONDITION = gui("add_condition", "+ Add");
     public static final Entry ADD_NODE = gui("add_node", "Add Node");
+    public static final Entry DELETE = gui("delete", "Delete");
+    public static final Entry DELETE_MANY = gui("delete_many", "Delete %s nodes");
     public static final Entry TEXT_MODE = gui("text_mode", "Text mode");
     public static final Entry VISUAL_EDITOR = gui("visual_editor", "Visual editor");
     public static final Entry JOIN = gui("join", "Join: %s");
@@ -73,7 +75,7 @@ public final class RFMTranslations {
     public static final Entry ROW_REDSTONE = gui("row_redstone", "Redstone");
     public static final Entry STATS = gui("stats", "%s nodes · %s wires · %s%%");
     public static final Entry LABELS_AVAILABLE = gui("labels_available", "%s labels available");
-    public static final Entry HINT = gui("hint", "Right-click: add node · Drag pins: connect · Alt-click pin or wire: disconnect");
+    public static final Entry HINT = gui("hint", "Right-click: add node, or delete a wire or node · Drag pins: connect · Alt-click pin: disconnect");
     public static final Entry LEGACY_WARNING = gui("legacy_warning", "Existing program has no graph data - saving will replace it");
     public static final Entry ERRORS_ONE = gui("errors_one", "1 program error - fix to save");
     public static final Entry ERRORS_MANY = gui("errors_many", "%s program errors - fix to save");

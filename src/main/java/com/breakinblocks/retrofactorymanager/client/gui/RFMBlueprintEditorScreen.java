@@ -108,6 +108,9 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
     private record PinHit(UUID nodeId, PinRole role) {
     }
 
+    private record MenuEntry(Component label, Runnable action) {
+    }
+
     private final ISFMTextEditScreenOpenContext openContext;
     private final BlueprintGraph graph;
     private final boolean legacyProgramWithoutGraph;
@@ -174,6 +177,10 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
     private int paletteY;
     private double paletteCanvasX;
     private double paletteCanvasY;
+
+    private List<MenuEntry> contextMenu = List.of();
+    private int contextMenuX;
+    private int contextMenuY;
 
     private boolean previewOpen;
 
@@ -758,6 +765,71 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         paletteX = (int) Math.min(mouseX, width - PALETTE_WIDTH - 4);
         paletteY = (int) Math.min(mouseY, height - paletteHeight() - 4);
         paletteOpen = true;
+    }
+
+    private void handleRightClick(double mouseX, double mouseY) {
+        BlueprintNode node = findNode(mouseX, mouseY);
+        if (node != null) {
+            if (!selection.contains(node.id())) {
+                selection.clear();
+                selection.add(node.id());
+                requestInspectorRefresh();
+            }
+            Component deleteLabel = selection.size() > 1
+                    ? RFMTranslations.DELETE_MANY.component(selection.size())
+                    : RFMTranslations.DELETE.component();
+            openContextMenu(mouseX, mouseY, List.of(new MenuEntry(deleteLabel, this::deleteSelection)));
+            return;
+        }
+        if (findPin(mouseX, mouseY) == null) {
+            BlueprintEdge wire = findWire(mouseX, mouseY);
+            if (wire != null && graph.removeEdge(wire)) {
+                hoveredWire = null;
+                markEdited();
+                return;
+            }
+        }
+        openPalette(mouseX, mouseY);
+    }
+
+    private void deleteSelection() {
+        if (selection.isEmpty()) {
+            return;
+        }
+        graph.removeNodes(new ArrayList<>(selection));
+        selection.clear();
+        markEdited();
+        requestInspectorRefresh();
+    }
+
+    private boolean contextMenuOpen() {
+        return !contextMenu.isEmpty();
+    }
+
+    private int contextMenuWidth() {
+        int widest = 0;
+        for (MenuEntry entry : contextMenu) {
+            widest = Math.max(widest, font.width(entry.label()));
+        }
+        return Math.max(90, widest + 16);
+    }
+
+    private int contextMenuHeight() {
+        return contextMenu.size() * PALETTE_ROW_HEIGHT + 4;
+    }
+
+    private void openContextMenu(double mouseX, double mouseY, List<MenuEntry> entries) {
+        contextMenu = entries;
+        contextMenuX = (int) Math.min(mouseX, width - contextMenuWidth() - 4);
+        contextMenuY = (int) Math.min(mouseY, height - contextMenuHeight() - 4);
+    }
+
+    private int contextMenuRowAt(double mouseX, double mouseY) {
+        if (mouseX < contextMenuX || mouseX > contextMenuX + contextMenuWidth() || mouseY < contextMenuY + 2) {
+            return -1;
+        }
+        int index = (int) ((mouseY - contextMenuY - 2) / PALETTE_ROW_HEIGHT);
+        return index < contextMenu.size() ? index : -1;
     }
 
     private boolean supportsLabels(NodeType type) {
@@ -1674,6 +1746,15 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (contextMenuOpen()) {
+            List<MenuEntry> entries = contextMenu;
+            int index = contextMenuRowAt(mouseX, mouseY);
+            contextMenu = List.of();
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && index >= 0) {
+                entries.get(index).action().run();
+            }
+            return true;
+        }
         if (paletteOpen) {
             if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && inPalette(mouseX, mouseY)) {
                 int index = (int) ((mouseY - paletteY - PALETTE_HEADER_HEIGHT) / PALETTE_ROW_HEIGHT);
@@ -1949,7 +2030,7 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         switch (mode) {
             case PAN_RMB -> {
                 if (!rightDragMoved) {
-                    openPalette(mouseX, mouseY);
+                    handleRightClick(mouseX, mouseY);
                 }
                 return true;
             }
@@ -2068,6 +2149,10 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && contextMenuOpen()) {
+            contextMenu = List.of();
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && paletteOpen) {
             paletteOpen = false;
             return true;
@@ -2137,10 +2222,8 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
         if ((keyCode == GLFW.GLFW_KEY_DELETE || keyCode == GLFW.GLFW_KEY_BACKSPACE) && !selection.isEmpty()) {
-            graph.removeNodes(new ArrayList<>(selection));
-            selection.clear();
-            markEdited();
-            requestInspectorRefresh();
+            contextMenu = List.of();
+            deleteSelection();
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_HOME) {
@@ -2178,11 +2261,12 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
         super.render(graphics, mouseX, mouseY, partialTick);
         renderSuggestions(graphics, mouseX, mouseY);
         renderPalette(graphics, mouseX, mouseY);
+        renderContextMenu(graphics, mouseX, mouseY);
         renderTooltips(graphics, mouseX, mouseY);
     }
 
     private void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
-        if (paletteOpen || !suggestions.isEmpty() || dragMode != DragMode.NONE) {
+        if (paletteOpen || contextMenuOpen() || !suggestions.isEmpty() || dragMode != DragMode.NONE) {
             return;
         }
         if (inDock(mouseX)) {
@@ -2827,6 +2911,27 @@ public class RFMBlueprintEditorScreen extends Screen implements ISFMTextEditScre
             }
             graphics.fill(paletteX + 6, rowY + 3, paletteX + 12, rowY + 9, headerColor(types.get(i).category()));
             graphics.drawString(font, Component.translatable(types.get(i).translationKey()), paletteX + 17, rowY + 2, TEXT_PRIMARY);
+        }
+        graphics.pose().popPose();
+    }
+
+    private void renderContextMenu(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!contextMenuOpen()) {
+            return;
+        }
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0D, 0.0D, OVERLAY_Z + 100.0D);
+        int w = contextMenuWidth();
+        int h = contextMenuHeight();
+        graphics.fill(contextMenuX - 1, contextMenuY - 1, contextMenuX + w + 1, contextMenuY + h + 1, PANEL_BORDER);
+        graphics.fill(contextMenuX, contextMenuY, contextMenuX + w, contextMenuY + h, PALETTE_BACKGROUND);
+        int hoveredRow = contextMenuRowAt(mouseX, mouseY);
+        for (int i = 0; i < contextMenu.size(); i++) {
+            int rowY = contextMenuY + 2 + i * PALETTE_ROW_HEIGHT;
+            if (i == hoveredRow) {
+                graphics.fill(contextMenuX, rowY, contextMenuX + w, rowY + PALETTE_ROW_HEIGHT, PALETTE_ROW_HOVER);
+            }
+            graphics.drawString(font, contextMenu.get(i).label(), contextMenuX + 8, rowY + 2, TEXT_PRIMARY);
         }
         graphics.pose().popPose();
     }
